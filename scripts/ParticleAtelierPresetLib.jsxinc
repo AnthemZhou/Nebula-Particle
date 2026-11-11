@@ -1,0 +1,295 @@
+/* Particle Atelier preset API. ES3 / ExtendScript; no eval or JSON dependency. */
+var PA_Presets = (function () {
+    var MATCH = "ParticleAtelier.Particles";
+    var MAGIC = "PARTICLE_ATELIER_PRESET 1";
+    var fields = [
+        {key:"rate", name:"Density (births/sec)", min:0, max:10000},
+        {key:"size", name:"Size (px)", min:0.1, max:40},
+        {key:"life", name:"Lifetime (sec)", min:0.04, max:10},
+        {key:"shape", name:"Particle shape", min:1, max:3, integer:true},
+        {key:"blend", name:"Particle blend", min:1, max:3, integer:true},
+        {key:"colorMode", name:"Color mode", min:1, max:2, integer:true},
+        {key:"tint", name:"Tint color", color:true},
+        {key:"speed", name:"Initial speed (px/sec)", min:0, max:1000},
+        {key:"direction", name:"Direction (0=right)", min:-3600, max:3600},
+        {key:"spread", name:"Spread (degrees)", min:0, max:360},
+        {key:"damping", name:"Damping (per sec)", min:0, max:20},
+        {key:"fadeIn", name:"Fade in (% lifetime)", min:0, max:100},
+        {key:"fadeOut", name:"Fade out (% lifetime)", min:0, max:100},
+        {key:"twinkle", name:"Twinkle strength (%)", min:0, max:100},
+        {key:"twinkleHz", name:"Twinkle frequency (Hz)", min:0, max:10},
+        {key:"glow", name:"Glow (%)", min:0, max:100},
+        {key:"opacity", name:"Opacity (%)", min:0, max:100}
+    ];
+    function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+    function array(v) { return Object.prototype.toString.call(v) === "[object Array]"; }
+    function copy(v) { return array(v) ? v.slice(0) : v; }
+    function fail(message) { throw new Error(message); }
+    function trim(s) { return s.replace(/^\s+|\s+$/g, ""); }
+    function field(key) {
+        for (var i=0; i<fields.length; i++) if (fields[i].key === key) return fields[i];
+        return null;
+    }
+    function safeName(value) {
+        if (typeof value !== "string") fail("预设名称必须是文字。");
+        var name = trim(value);
+        if (!name || name.length > 64) fail("请填写 1–64 个字符的预设名称。");
+        if (/^[.]|[. ]$|[\x00-\x1f\x7f<>:"\/\\|?*%]/.test(name))
+            fail("名称不能以点开头或结尾，也不能包含百分号、斜杠、冒号等文件名符号。");
+        return name;
+    }
+    function checkValue(spec, value) {
+        if (spec.color) {
+            if (!array(value) || value.length !== 4) fail("Tint color 必须是四个颜色通道。");
+            var result=[];
+            for (var j=0; j<4; j++) {
+                if (typeof value[j] !== "number" || !isFinite(value[j]) || value[j]<0 || value[j]>1)
+                    fail("Tint color 的通道必须在 0–1 范围内。");
+                result.push(value[j]);
+            }
+            if (result[3] !== 1) fail("Tint color 的 Alpha 必须为 1。");
+            return result;
+        }
+        if (typeof value !== "number" || !isFinite(value) || value<spec.min || value>spec.max ||
+            (spec.integer && Math.floor(value)!==value)) fail("参数超出允许范围：" + spec.name);
+        return value;
+    }
+    function validate(preset) {
+        if (!preset || preset.schema !== 1) fail("不支持的预设版本，需要 schema 1。");
+        var key;
+        for (key in preset) if (own(preset,key) && key!=="schema" && key!=="name" && key!=="description" && key!=="values")
+            fail("未知预设字段："+key);
+        if (typeof preset.description !== "string" || preset.description.length>1000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(preset.description))
+            fail("预设说明无效或超过 1000 个字符。");
+        var source=preset.values, values={};
+        if (!source || typeof source!=="object" || array(source)) fail("预设参数格式无效。");
+        for (key in source) if (own(source,key) && !field(key)) fail("禁止写入预设参数："+key);
+        for (var i=0; i<fields.length; i++) {
+            key=fields[i].key;
+            if (!own(source,key)) fail("预设缺少参数："+key);
+            values[key]=checkValue(fields[i],source[key]);
+        }
+        return {schema:1,name:safeName(preset.name),description:preset.description,values:values};
+    }
+    function serialize(preset) {
+        var p=validate(preset), lines=[MAGIC,"name="+encodeURIComponent(p.name),"description="+encodeURIComponent(p.description)];
+        for (var i=0; i<fields.length; i++) {
+            var k=fields[i].key, v=p.values[k];
+            lines.push(k+"="+(array(v) ? v.join(",") : String(v)));
+        }
+        return lines.join("\n")+"\n";
+    }
+    function number(text) {
+        if (!/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(text)) fail("预设包含无效数值。");
+        var n=Number(text);
+        if (!isFinite(n)) fail("预设包含非有限数值。");
+        return n;
+    }
+    function parse(text) {
+        if (typeof text!=="string" || text.length>65536) fail("预设文件无效或超过 64 KB。");
+        text=text.replace(/^\uFEFF/, "").replace(/\r\n?/g,"\n");
+        var lines=text.split("\n"), seen={}, p={schema:1,name:null,description:null,values:{}};
+        if (lines[0]!==MAGIC || lines.length>64) fail("不支持的预设文件格式或版本。");
+        for (var i=1; i<lines.length; i++) {
+            if (lines[i]==="" && i===lines.length-1) continue;
+            var at=lines[i].indexOf("="), key=lines[i].substring(0,at), val=lines[i].substring(at+1);
+            if (at<1 || !/^[A-Za-z][A-Za-z0-9]*$/.test(key) || own(seen,key)) fail("预设含重复或无效字段。");
+            if (key!=="name" && key!=="description" && !field(key)) fail("预设含未知字段："+key);
+            seen[key]=true;
+            if (key==="name" || key==="description") {
+                try { p[key]=decodeURIComponent(val); } catch (e) { fail("预设文字编码无效。"); }
+            } else if (field(key).color) {
+                var parts=val.split(","), color=[];
+                for (var j=0; j<parts.length; j++) color.push(number(parts[j]));
+                p.values[key]=color;
+            } else p.values[key]=number(val);
+        }
+        return validate(p);
+    }
+    function builtins() {
+        var names=["表面微闪","细尘拖尾","星点拖尾","轻盈飘动","向外散发","背景浮尘"];
+        var descriptions=[
+            "细小星点在元素表面闪现。适合文字、Logo 和带透明通道的装饰元素。",
+            "细颗粒停留在运动轨迹上。适合带 Alpha 或亮度遮罩的运动序列。",
+            "清晰的小星点组成轻盈拖尾，少量光晕和错开的闪烁增加层次。",
+            "颗粒沿斜上方缓缓漂移，配合轻阻尼。适合安静、柔和的装饰画面。",
+            "颗粒带初速持续向四周射出，再逐渐减速。适合能量、火花或元素散发。",
+            "低密度细尘缓缓上浮。整幅背景请将 Emit from 设置为 Full frame；本预设保留当前发射范围。"
+        ];
+        var result=[];
+        for (var i=0; i<6; i++) {
+            var v={rate:500,size:1.6,life:2.4,shape:2,blend:2,colorMode:1,tint:[140/255,184/255,1,1],
+                speed:0,direction:0,spread:360,damping:0,fadeIn:10,fadeOut:40,twinkle:30,twinkleHz:1.4,glow:12,opacity:85};
+            if(i===0) { v.rate=180;v.life=1.25;v.size=1.8;v.shape=3;v.twinkle=55;v.twinkleHz=1.7;v.fadeIn=18;v.fadeOut=50;v.glow=8; }
+            if(i===1) { v.rate=650;v.life=2.4;v.size=1.2;v.shape=1;v.twinkle=15;v.fadeIn=4;v.fadeOut=70;v.glow=12; }
+            if(i===2) { v.rate=480;v.life=2;v.size=1.7;v.shape=3;v.twinkle=40;v.fadeIn=4;v.fadeOut=65;v.glow=4; }
+            if(i===3) { v.rate=350;v.life=3;v.size=1.4;v.speed=24;v.direction=-70;v.spread=50;v.damping=0.35;v.glow=8; }
+            if(i===4) { v.rate=550;v.life=1.8;v.size=1.7;v.speed=85;v.damping=1.7;v.shape=3;v.fadeIn=2;v.fadeOut=70;v.glow=6; }
+            if(i===5) { v.rate=280;v.life=4;v.size=1.2;v.speed=8;v.direction=-90;v.spread=80;v.colorMode=2;v.shape=1;v.twinkle=15;v.fadeIn=20;v.fadeOut=40;v.glow=4; }
+            result.push(validate({schema:1,name:names[i],description:descriptions[i],values:v}));
+        }
+        return result;
+    }
+    function findParameter(effect, key) {
+        var spec=field(key), wanted=spec ? spec.name : key, matches=[], visited=0;
+        function walk(group, depth) {
+            if(depth>16 || visited>512) fail("效果参数层级异常。");
+            for(var i=1; i<=group.numProperties; i++) {
+                var p=group.property(i); visited++;
+                if (!p) continue;
+                if (p.numProperties>0) walk(p,depth+1);
+                else if(p.name===wanted || p.matchName===wanted) matches.push(p);
+            }
+        }
+        walk(effect,0);
+        if(matches.length!==1) fail("无法唯一找到参数："+wanted+"。请确认插件版本。");
+        return matches[0];
+    }
+    function assertEffect(effect) {
+        if(!effect || effect.matchName!==MATCH) fail("请选中 Particle Atelier 效果，或只选中它所在的图层。");
+    }
+    function assertStatic(property) {
+        if(property.numKeys>0 || (typeof property.expression==="string" && trim(property.expression)!==""))
+            fail("“"+property.name+"”含关键帧或表达式。为保留动画，本次未应用预设；请复制效果后在静态副本上操作。");
+    }
+    function applyToEffect(effect, preset) {
+        assertEffect(effect);
+        var owner=owningLayer(effect);
+        if(owner && owner.locked) fail("所选效果所在图层已锁定。");
+        var p=validate(preset), targets=[], before=[], i;
+        // Finish every validation before the first mutation.
+        for(i=0; i<fields.length; i++) {
+            var property=findParameter(effect,fields[i].key);
+            assertStatic(property); targets.push(property); before.push(copy(property.value));
+        }
+        var hasApp=typeof app!=="undefined", applied=0;
+        if(hasApp) app.beginUndoGroup("Particle Atelier：应用预设");
+        try {
+            for(i=0; i<fields.length; i++) {
+                targets[i].setValue(copy(p.values[fields[i].key])); applied++;
+            }
+        } catch(error) {
+            var rollbackFailed=false;
+            for(i=applied-1; i>=0; i--) { try { targets[i].setValue(before[i]); } catch(rollback) { rollbackFailed=true; } }
+            fail("应用失败："+error.toString()+(rollbackFailed ? "。请使用 AE 撤销恢复。" : "。已恢复原数值。"));
+        } finally { if(hasApp) app.endUndoGroup(); }
+        return {applied:applied,name:p.name};
+    }
+    function captureEffect(effect,name,description) {
+        assertEffect(effect);
+        var values={};
+        for(var i=0; i<fields.length; i++) values[fields[i].key]=copy(findParameter(effect,fields[i].key).value);
+        return validate({schema:1,name:name,description:description || "",values:values});
+    }
+    function owningLayer(effect) {
+        try {
+            if(typeof effect.propertyGroup==="function" && effect.propertyDepth>0)
+                return effect.propertyGroup(effect.propertyDepth);
+        } catch(ignore) {}
+        var p=effect;
+        while(p && p.parentProperty) p=p.parentProperty;
+        return p && typeof p.locked!=="undefined" ? p : null;
+    }
+    function sameEffect(a,b) {
+        if(a===b) return true;
+        var layerA=owningLayer(a), layerB=owningLayer(b);
+        if(!layerA || !layerB || a.propertyIndex!==b.propertyIndex) return false;
+        if(typeof layerA.id==="number" && typeof layerB.id==="number") return layerA.id===layerB.id;
+        return layerA.index===layerB.index && layerA.containingComp===layerB.containingComp;
+    }
+    function selectedTarget(comp,create) {
+        if(!comp || typeof comp.selectedLayers==="undefined") fail("请先打开合成并选中一个图层或一个 Particle Atelier 效果。");
+        var selections=comp.selectedProperties || [], candidates=[], i,j,p;
+        for(i=0; i<selections.length; i++) {
+            p=selections[i];
+            while(p) {
+                if(p.matchName===MATCH) {
+                    var known=false;
+                    for(j=0; j<candidates.length; j++) if(sameEffect(candidates[j],p)) known=true;
+                    if(!known) candidates.push(p);
+                    break;
+                }
+                p=p.parentProperty;
+            }
+        }
+        if(candidates.length>1) fail("选中了多个 Particle Atelier 效果，请只选择一个。");
+        if(candidates.length===1) {
+            var selectedLayer=owningLayer(candidates[0]);
+            if(selectedLayer && selectedLayer.locked) fail("所选效果所在图层已锁定。");
+            return {effect:candidates[0],created:false};
+        }
+        if(comp.selectedLayers.length!==1) fail("请选择一个图层；有多个效果时，请直接选中要调整的 Particle Atelier。");
+        var layer=comp.selectedLayers[0];
+        if(layer.locked) fail("所选图层已锁定。");
+        var effects=layer.property("ADBE Effect Parade");
+        if(!effects) fail("这个图层不能添加效果。");
+        for(i=1; i<=effects.numProperties; i++) { p=effects.property(i); if(p.matchName===MATCH) candidates.push(p); }
+        if(candidates.length>1) fail("这个图层有多个 Particle Atelier，请直接选中其中一个效果。");
+        if(candidates.length===1) return {effect:candidates[0],created:false};
+        if(!create) fail("所选图层没有 Particle Atelier，先应用一个内置预设即可添加。");
+        if(!effects.canAddProperty(MATCH)) fail("未找到原生 Particle Atelier 插件，请先安装并重新启动 AE。");
+        return {effect:effects.addProperty(MATCH),created:true};
+    }
+    function selectedEffect(comp) { return selectedTarget(comp || app.project.activeItem,false).effect; }
+    function applySelected(preset) {
+        var p=validate(preset), target=null, result;
+        app.beginUndoGroup("Particle Atelier：应用预设");
+        try {
+            target=selectedTarget(app.project.activeItem,true);
+            result=applyToEffect(target.effect,p); result.created=target.created; return result;
+        } catch(error) {
+            if(target && target.created) { try { target.effect.remove(); } catch(ignore) {} }
+            throw error;
+        } finally { app.endUndoGroup(); }
+    }
+    function userFolder() { return new Folder(Folder.userData.fsName+"/Particle Atelier/User Presets"); }
+    function ensureFolder(folder) {
+        if(folder.exists) return;
+        if(folder.parent && !folder.parent.exists) ensureFolder(folder.parent);
+        if(!folder.create()) fail("无法创建用户预设目录。请检查脚本文件写入权限。");
+    }
+    function readPreset(file) {
+        if(file.length>65536) fail("预设文件超过 64 KB。");
+        file.encoding="UTF-8";
+        if(!file.open("r")) fail("无法读取预设："+file.name);
+        var text;
+        try { text=file.read(); } finally { file.close(); }
+        return parse(text);
+    }
+    function listUserPresets(folder) {
+        folder=folder || userFolder();
+        var result={presets:[],errors:[]};
+        if(!folder.exists) return result;
+        var files=folder.getFiles("*.papreset");
+        for(var i=0; i<files.length; i++) {
+            if(!(files[i] instanceof File)) continue;
+            try { result.presets.push({preset:readPreset(files[i]),file:files[i]}); }
+            catch(error) { result.errors.push(files[i].name+"："+error.toString()); }
+        }
+        result.presets.sort(function(a,b) { return a.preset.name<b.preset.name ? -1 : (a.preset.name>b.preset.name ? 1 : 0); });
+        return result;
+    }
+    function saveUserPreset(preset,folder) {
+        var p=validate(preset), base=p.name, suffix=1, file;
+        folder=folder || userFolder(); ensureFolder(folder);
+        do {
+            p.name=suffix===1 ? base : base.substring(0,56)+" ("+suffix+")";
+            file=new File(folder.fsName+"/"+p.name+".papreset"); suffix++;
+            if(file.parent.fsName!==folder.fsName) fail("预设文件路径必须位于用户预设目录内。");
+        } while(file.exists && suffix<10000);
+        if(file.exists) fail("同名预设过多，请换一个名称。");
+        var temp=new File(folder.fsName+"/.pa-preset-"+new Date().getTime()+"-"+Math.floor(Math.random()*1000000)+".tmp");
+        temp.encoding="UTF-8"; temp.lineFeed="Unix";
+        if(!temp.open("w")) fail("无法保存预设。请在 AE 的“脚本与表达式”设置中允许脚本写入文件，再重试；面板不会修改这个设置。");
+        try {
+            if(!temp.write(serialize(p))) fail("写入用户预设失败。");
+        } finally { temp.close(); }
+        if(file.exists || !temp.rename(p.name+".papreset")) { temp.remove(); fail("无法完成保存，请刷新列表后重试。"); }
+        return {preset:p,file:file};
+    }
+    return {schema:1,matchName:MATCH,fields:fields,builtins:builtins,validate:validate,parse:parse,serialize:serialize,
+        safeName:safeName,findParameter:findParameter,applyToEffect:applyToEffect,captureEffect:captureEffect,
+        selectedEffect:selectedEffect,applySelected:applySelected,userFolder:userFolder,readPreset:readPreset,
+        listUserPresets:listUserPresets,saveUserPreset:saveUserPreset};
+}());
+if(typeof module!=="undefined" && module.exports) module.exports=PA_Presets;

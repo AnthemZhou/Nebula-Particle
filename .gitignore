@@ -1,0 +1,47 @@
+# Local SDKs, personal settings, backups and test output
+/.local/
+/build/
+/dist/
+/test-output/
+/sdk/
+/SDK/
+/AfterEffectsSDK/
+*.dmg
+*.papreset
+
+# Native build products and release archives
+*.plugin
+*.plugin/
+*.aex
+*.dylib
+*.dll
+*.so
+*.o
+*.obj
+*.a
+*.lib
+*.dSYM/
+*.zip
+DerivedData/
+
+# Host projects and private logs are generated locally
+*.aep
+*.aepx
+*.log
+
+# Editor, Python and operating-system caches
+.DS_Store
+._*
+.vscode/
+.idea/
+*.xcuserstate
+xcuserdata/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example

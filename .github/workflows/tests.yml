@@ -1,0 +1,29 @@
+name: Source checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Particle core and sanitizers (no Adobe SDK required)
+        run: bash scripts/test-core.sh --sanitize
+      - name: Python and shell syntax
+        run: |
+          python3 -m py_compile scripts/*.py
+          for script in scripts/*.sh; do bash -n "$script"; done
+  presets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preset serialization and application safeguards
+        run: node tests/preset_library_test.js
