@@ -88,7 +88,7 @@ enum DiskID {
     IdDevelopmentToolsEnd = 41
 };
 
-static_assert(PA_VERSION == PF_VERSION(0, 2, 0, PF_Stage_DEVELOP, 1),
+static_assert(PA_VERSION == PF_VERSION(0, 5, 0, PF_Stage_RELEASE, 0),
     "C++ and PiPL version constants must match the SDK encoding");
 
 Settings resourcePreset(int index) {
@@ -98,7 +98,14 @@ Settings resourcePreset(int index) {
     const auto path = std::filesystem::path(info.dli_fname).parent_path().parent_path() / "Resources" / "presets.ini";
     std::ifstream input;
     if (const char* userHome = std::getenv("HOME")) {
-        input.open(std::filesystem::path(userHome) / "Library" / "Application Support" / "Particle Atelier" / "presets.ini");
+        const auto support = std::filesystem::path(userHome) / "Library" / "Application Support";
+        input.open(support / "Nebula Particle" / "presets.ini");
+        // Legacy editable resources remain usable before the installer migrates
+        // them. Prefer the new location and never overwrite either file here.
+        if (!input.is_open()) {
+            input.clear();
+            input.open(support / "Particle Atelier" / "presets.ini");
+        }
     }
     if (!input.is_open()) { input.clear(); input.open(path); }
     std::string line;
@@ -327,7 +334,7 @@ PF_Err render(PF_InData* in_data, PF_OutData* out_data, PF_ParamDef* params[], P
 
 extern "C" DllExport PF_Err PluginDataEntryFunction2(PF_PluginDataPtr inPtr, PF_PluginDataCB2 callback, SPBasicSuite*, const char*, const char*) {
     PF_Err result=PF_Err_INVALID_CALLBACK;
-    result=PF_REGISTER_EFFECT_EXT2(inPtr,callback,PA_NAME,PA_MATCH_NAME,"Particle Atelier",AE_RESERVED_INFO,"EffectMain","");
+    result=PF_REGISTER_EFFECT_EXT2(inPtr,callback,PA_NAME,PA_MATCH_NAME,PA_CATEGORY,AE_RESERVED_INFO,PA_ENTRY_POINT,PA_SUPPORT_URL);
     return result;
 }
 
@@ -335,7 +342,7 @@ extern "C" DllExport PF_Err EffectMain(PF_Cmd cmd, PF_InData* in_data, PF_OutDat
     try {
         switch(cmd) {
             case PF_Cmd_ABOUT:
-                std::snprintf(out_data->return_msg,sizeof(out_data->return_msg),"Particle Atelier 0.2\rGrouped controls. CPU 2D preview, 8/16 bpc. Optical flow, GPU and depth are not implemented yet.");
+                std::snprintf(out_data->return_msg,sizeof(out_data->return_msg),PA_NAME " " PA_VERSION_STRING "\rGrouped controls. CPU 2D preview, 8/16 bpc. Optical flow, GPU and depth are not implemented yet.");
                 break;
             case PF_Cmd_GLOBAL_SETUP:
                 out_data->my_version=PA_VERSION; out_data->out_flags=PA_OUT_FLAGS; out_data->out_flags2=PA_OUT_FLAGS2;

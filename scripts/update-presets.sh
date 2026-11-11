@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE="${1:-$PROJECT_ROOT/resources/presets.ini}"
-PRESET_ROOT="$HOME/Library/Application Support/Particle Atelier"
+PRESET_ROOT="$HOME/Library/Application Support/Nebula Particle"
 DESTINATION="$PRESET_ROOT/presets.ini"
 
 if [[ ! -f "$SOURCE" ]]; then

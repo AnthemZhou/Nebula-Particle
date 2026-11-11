@@ -1,4 +1,5 @@
-/* Particle Atelier preset API. ES3 / ExtendScript; no eval or JSON dependency. */
+/* Nebula Particle 0.5.0 preset API. ES3 / ExtendScript; no eval or JSON dependency.
+   PA_Presets, the native match name and format magic remain compatible. */
 var PA_Presets = (function () {
     var MATCH = "ParticleAtelier.Particles";
     var MAGIC = "PARTICLE_ATELIER_PRESET 1";
@@ -146,7 +147,7 @@ var PA_Presets = (function () {
         return matches[0];
     }
     function assertEffect(effect) {
-        if(!effect || effect.matchName!==MATCH) fail("请选中 Particle Atelier 效果，或只选中它所在的图层。");
+        if(!effect || effect.matchName!==MATCH) fail("请选中 Nebula Particle 效果，或只选中它所在的图层。");
     }
     function assertStatic(property) {
         if(property.numKeys>0 || (typeof property.expression==="string" && trim(property.expression)!==""))
@@ -163,7 +164,7 @@ var PA_Presets = (function () {
             assertStatic(property); targets.push(property); before.push(copy(property.value));
         }
         var hasApp=typeof app!=="undefined", applied=0;
-        if(hasApp) app.beginUndoGroup("Particle Atelier：应用预设");
+        if(hasApp) app.beginUndoGroup("Nebula Particle：应用预设");
         try {
             for(i=0; i<fields.length; i++) {
                 targets[i].setValue(copy(p.values[fields[i].key])); applied++;
@@ -198,7 +199,7 @@ var PA_Presets = (function () {
         return layerA.index===layerB.index && layerA.containingComp===layerB.containingComp;
     }
     function selectedTarget(comp,create) {
-        if(!comp || typeof comp.selectedLayers==="undefined") fail("请先打开合成并选中一个图层或一个 Particle Atelier 效果。");
+        if(!comp || typeof comp.selectedLayers==="undefined") fail("请先打开合成并选中一个图层或一个 Nebula Particle 效果。");
         var selections=comp.selectedProperties || [], candidates=[], i,j,p;
         for(i=0; i<selections.length; i++) {
             p=selections[i];
@@ -212,28 +213,28 @@ var PA_Presets = (function () {
                 p=p.parentProperty;
             }
         }
-        if(candidates.length>1) fail("选中了多个 Particle Atelier 效果，请只选择一个。");
+        if(candidates.length>1) fail("选中了多个 Nebula Particle 效果，请只选择一个。");
         if(candidates.length===1) {
             var selectedLayer=owningLayer(candidates[0]);
             if(selectedLayer && selectedLayer.locked) fail("所选效果所在图层已锁定。");
             return {effect:candidates[0],created:false};
         }
-        if(comp.selectedLayers.length!==1) fail("请选择一个图层；有多个效果时，请直接选中要调整的 Particle Atelier。");
+        if(comp.selectedLayers.length!==1) fail("请选择一个图层；有多个效果时，请直接选中要调整的 Nebula Particle。");
         var layer=comp.selectedLayers[0];
         if(layer.locked) fail("所选图层已锁定。");
         var effects=layer.property("ADBE Effect Parade");
         if(!effects) fail("这个图层不能添加效果。");
         for(i=1; i<=effects.numProperties; i++) { p=effects.property(i); if(p.matchName===MATCH) candidates.push(p); }
-        if(candidates.length>1) fail("这个图层有多个 Particle Atelier，请直接选中其中一个效果。");
+        if(candidates.length>1) fail("这个图层有多个 Nebula Particle，请直接选中其中一个效果。");
         if(candidates.length===1) return {effect:candidates[0],created:false};
-        if(!create) fail("所选图层没有 Particle Atelier，先应用一个内置预设即可添加。");
-        if(!effects.canAddProperty(MATCH)) fail("未找到原生 Particle Atelier 插件，请先安装并重新启动 AE。");
+        if(!create) fail("所选图层没有 Nebula Particle，先应用一个内置预设即可添加。");
+        if(!effects.canAddProperty(MATCH)) fail("未找到原生 Nebula Particle 插件，请先安装并重新启动 AE。");
         return {effect:effects.addProperty(MATCH),created:true};
     }
     function selectedEffect(comp) { return selectedTarget(comp || app.project.activeItem,false).effect; }
     function applySelected(preset) {
         var p=validate(preset), target=null, result;
-        app.beginUndoGroup("Particle Atelier：应用预设");
+        app.beginUndoGroup("Nebula Particle：应用预设");
         try {
             target=selectedTarget(app.project.activeItem,true);
             result=applyToEffect(target.effect,p); result.created=target.created; return result;
@@ -242,7 +243,8 @@ var PA_Presets = (function () {
             throw error;
         } finally { app.endUndoGroup(); }
     }
-    function userFolder() { return new Folder(Folder.userData.fsName+"/Particle Atelier/User Presets"); }
+    function userFolder() { return new Folder(Folder.userData.fsName+"/Nebula Particle/User Presets"); }
+    function legacyUserFolder() { return new Folder(Folder.userData.fsName+"/Particle Atelier/User Presets"); }
     function ensureFolder(folder) {
         if(folder.exists) return;
         if(folder.parent && !folder.parent.exists) ensureFolder(folder.parent);
@@ -256,8 +258,7 @@ var PA_Presets = (function () {
         try { text=file.read(); } finally { file.close(); }
         return parse(text);
     }
-    function listUserPresets(folder) {
-        folder=folder || userFolder();
+    function readFolder(folder) {
         var result={presets:[],errors:[]};
         if(!folder.exists) return result;
         var files=folder.getFiles("*.papreset");
@@ -266,8 +267,40 @@ var PA_Presets = (function () {
             try { result.presets.push({preset:readPreset(files[i]),file:files[i]}); }
             catch(error) { result.errors.push(files[i].name+"："+error.toString()); }
         }
-        result.presets.sort(function(a,b) { return a.preset.name<b.preset.name ? -1 : (a.preset.name>b.preset.name ? 1 : 0); });
         return result;
+    }
+    function mergePresetEntries(current,legacy) {
+        var result=[], fingerprints=[], groups=[current,legacy], i,j,k;
+        // Suppress only exact duplicates (name, description and every value).
+        // Different content always survives, even when its name is identical.
+        for(i=0; i<groups.length; i++) for(j=0; j<groups[i].length; j++) {
+            var entry=groups[i][j], preset=validate(entry.preset), fingerprint=serialize(preset), duplicate=false;
+            for(k=0;k<fingerprints.length;k++) if(fingerprints[k]===fingerprint) duplicate=true;
+            if(duplicate) continue;
+            fingerprints.push(fingerprint);
+            result.push({preset:preset,file:entry.file,origin:i===0 ? "current" : "legacy",
+                displayName:preset.name+(i===0 ? "" : "（旧版）")});
+        }
+        for(i=0;i<result.length;i++) {
+            var count=0;
+            for(j=0;j<result.length;j++) if(result[i].preset.name===result[j].preset.name && result[i].origin===result[j].origin) count++;
+            if(count>1) {
+                var fileName=result[i].file ? result[i].file.name : String(i+1);
+                try { fileName=decodeURIComponent(fileName); } catch(ignore) {}
+                result[i].displayName+=" · "+fileName;
+            }
+        }
+        result.sort(function(a,b) { return a.displayName<b.displayName ? -1 : (a.displayName>b.displayName ? 1 : 0); });
+        return result;
+    }
+    function listUserPresets(folder) {
+        if(folder) {
+            var only=readFolder(folder);
+            only.presets=mergePresetEntries(only.presets,[]);
+            return only;
+        }
+        var current=readFolder(userFolder()), legacy=readFolder(legacyUserFolder());
+        return {presets:mergePresetEntries(current.presets,legacy.presets),errors:current.errors.concat(legacy.errors)};
     }
     function saveUserPreset(preset,folder) {
         var p=validate(preset), base=p.name, suffix=1, file;
@@ -278,7 +311,7 @@ var PA_Presets = (function () {
             if(file.parent.fsName!==folder.fsName) fail("预设文件路径必须位于用户预设目录内。");
         } while(file.exists && suffix<10000);
         if(file.exists) fail("同名预设过多，请换一个名称。");
-        var temp=new File(folder.fsName+"/.pa-preset-"+new Date().getTime()+"-"+Math.floor(Math.random()*1000000)+".tmp");
+        var temp=new File(folder.fsName+"/.nebula-preset-"+new Date().getTime()+"-"+Math.floor(Math.random()*1000000)+".tmp");
         temp.encoding="UTF-8"; temp.lineFeed="Unix";
         if(!temp.open("w")) fail("无法保存预设。请在 AE 的“脚本与表达式”设置中允许脚本写入文件，再重试；面板不会修改这个设置。");
         try {
@@ -287,9 +320,9 @@ var PA_Presets = (function () {
         if(file.exists || !temp.rename(p.name+".papreset")) { temp.remove(); fail("无法完成保存，请刷新列表后重试。"); }
         return {preset:p,file:file};
     }
-    return {schema:1,matchName:MATCH,fields:fields,builtins:builtins,validate:validate,parse:parse,serialize:serialize,
+    return {schema:1,version:"0.5.0",matchName:MATCH,fields:fields,builtins:builtins,validate:validate,parse:parse,serialize:serialize,
         safeName:safeName,findParameter:findParameter,applyToEffect:applyToEffect,captureEffect:captureEffect,
-        selectedEffect:selectedEffect,applySelected:applySelected,userFolder:userFolder,readPreset:readPreset,
-        listUserPresets:listUserPresets,saveUserPreset:saveUserPreset};
+        selectedEffect:selectedEffect,applySelected:applySelected,userFolder:userFolder,legacyUserFolder:legacyUserFolder,readPreset:readPreset,
+        mergePresetEntries:mergePresetEntries,listUserPresets:listUserPresets,saveUserPreset:saveUserPreset};
 }());
 if(typeof module!=="undefined" && module.exports) module.exports=PA_Presets;

@@ -39,7 +39,7 @@
                 var property = find(effect, name);
                 assert(property && Math.abs(property.value - expected[name]) < 0.0001, "Legacy value changed: " + name);
             }
-            lines.push("PASS: v0.1 values and layer links retained after 0.2 parameter regrouping.");
+            lines.push("PASS: v0.1 values and layer links retained after Nebula Particle 0.5.0 upgrade.");
             tested++;
         }
         assert(tested === 1, "Expected legacy test composition was not found.");

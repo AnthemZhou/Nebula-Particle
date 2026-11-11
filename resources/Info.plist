@@ -3,21 +3,22 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>ParticleAtelier</string>
+    <string>NebulaParticle</string>
+    <!-- Retained from Particle Atelier for upgrade identity and old installs. -->
     <key>CFBundleIdentifier</key>
     <string>com.particleatelier.particles.dev</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Particle Atelier</string>
+    <string>Nebula Particle</string>
     <key>CFBundlePackageType</key>
     <string>eFKT</string>
     <key>CFBundleSignature</key>
     <string>FXTC</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.0</string>
+    <string>0.5.0</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>5</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
 </dict>

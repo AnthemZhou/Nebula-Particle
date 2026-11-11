@@ -2,7 +2,25 @@
 
 这里记录面向使用者的行为变化。开发中的条目不表示已经发布，也不表示已经完成全部 AE 验收。
 
-## [0.2.0-dev] — 开发中 / Unreleased
+## [0.5.0] — 2026-11-12
+
+### 名称与发行
+
+- 插件、面板、仓库介绍及安装包统一使用 **Nebula Particle**。
+- 发布 macOS arm64 用户级安装包 `Nebula-Particle-0.5.0-macos-arm64.zip`，包含原生效果、预设面板、安装入口、许可证与源码定位；安装不需要 SDK。
+- 对应源码使用 `v0.5.0` 标签，项目许可仍为 GPL-3.0-only。
+
+### 兼容
+
+- 保留早期 **Particle Atelier** 的内部效果匹配名及参数磁盘 ID，继续识别已保存工程。
+- 新用户数据写入 Nebula Particle 目录；旧资源与用户预设保留读取兼容。
+- 安装器备份并移出旧名称插件和面板，避免重复加载；不删除旧用户预设数据。
+
+### 范围与验证
+
+0.5.0 延续二维 CPU、8/16 bpc 的当前功能集，不表示 V1.0 路线已经完成。已在 AE 23.6 完成旧名升级、新名称识别、8/16 bpc 渲染、旧工程与用户预设回归；预设库 13 项独立检查通过。归档内容校验在打包阶段另行执行。发布包采用 ad-hoc 签名，尚未经过 Apple 公证，详情见[使用说明](docs/验证版使用说明.md)。
+
+## [0.2.0-dev] — 历史开发版本
 
 ### 参数与工作流
 
@@ -38,5 +56,6 @@ AE 23.6 下已完成本版本的 8/16 bpc 渲染、旧工程兼容、6 个内置
 
 已有 AE 23.6 下的加载、工程保存/重开及 CPU 8/16 bpc 渲染基线。检查输出所用 PSD 模板为 8-bit，因此不能据此声称原始 16 bpc 输出位精确一致。没有 GPU、光流、32 bpc/HDR 或生产规模性能结论。
 
-[0.2.0-dev]: https://github.com/AnthemZhou/Particle_Atelier
-[0.1.0-dev.1]: https://github.com/AnthemZhou/Particle_Atelier
+[0.5.0]: https://github.com/AnthemZhou/Nebula-Particle/releases/tag/v0.5.0
+[0.2.0-dev]: https://github.com/AnthemZhou/Nebula-Particle
+[0.1.0-dev.1]: https://github.com/AnthemZhou/Nebula-Particle

@@ -27,9 +27,10 @@
         var src = c.layers.add(source); src.name = "Baked moving RGBA sequence";
         var matte = c.layers.add(mask); matte.name = "External luminance pass";
         var color = c.layers.add(map); color.name = "Independent color map";
-        var layer = c.layers.addSolid([0, 0, 0], "Particle Atelier", 640, 360, 1, duration);
+        var layer = c.layers.addSolid([0, 0, 0], "Nebula Particle", 640, 360, 1, duration);
         var fx = layer.property("ADBE Effect Parade").addProperty("ParticleAtelier.Particles");
-        if (!fx) throw Error("Particle Atelier did not load. Install the plugin and start a fresh AE session.");
+        if (!fx) throw Error("Nebula Particle did not load. Install the plugin and start a fresh AE session.");
+        if (fx.name !== "Nebula Particle") throw Error("An older plugin build is loaded; restart AE after installing Nebula Particle.");
         // Assign after all layers have been added, since inserting layers changes indices.
         set(fx, "Source (None = this layer)", src.index);
         set(fx, "Color map (None = source)", color.index);
@@ -59,7 +60,7 @@
             return;
         }
         if (!app.project) app.newProject();
-        app.beginUndoGroup("Create Particle Atelier test project");
+        app.beginUndoGroup("Create Nebula Particle test project");
         app.project.bitsPerChannel = 16;
         var source = sequence("rgba"), mask = sequence("luma");
         var map = app.project.importFile(new ImportOptions(new File(root.fsName + "/test-output/fixtures/color-map.png")));
@@ -75,9 +76,9 @@
         var tail = makeComp("05 - After footage end", source, mask, map, 1);
         set(tail.layer(1).property("ADBE Effect Parade").property(1), "Show source", 0);
         tail.time = 4.4;
-        var outputFile = new File(output.fsName + "/Particle Atelier Test.aep");
+        var outputFile = new File(output.fsName + "/Nebula Particle Test.aep");
         if (outputFile.exists) {
-            outputFile = new File(output.fsName + "/Particle Atelier Test " + (new Date()).getTime() + ".aep");
+            outputFile = new File(output.fsName + "/Nebula Particle Test " + (new Date()).getTime() + ".aep");
         }
         app.project.save(outputFile);
         trail.openInViewer();
@@ -86,6 +87,6 @@
     } catch (error) {
         try { app.endUndoGroup(); } catch (ignored) {}
         status("FAIL: " + error.toString() + " line " + error.line);
-        alert("Particle Atelier test: " + error.toString());
+        alert("Nebula Particle test: " + error.toString());
     }
 })();

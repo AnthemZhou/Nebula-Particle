@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const api = require("../scripts/ParticleAtelierPresetLib.jsxinc");
+const api = require("../scripts/NebulaParticlePresetLib.jsxinc");
 const clone = value => JSON.parse(JSON.stringify(value));
 let passed = 0;
 function test(name, action) { action(); passed++; process.stdout.write(`PASS ${name}\n`); }
@@ -41,6 +41,57 @@ test("six concrete builtins round-trip without evaluating data", () => {
     assert.deepEqual(Object.keys(presets[0].values).sort(),api.fields.map(f=>f.key).sort());
     presets[0].values.tint[0]=0;
     assert.notEqual(api.builtins()[0].values.tint[0],0,"builtins must return fresh records");
+});
+
+test("release branding preserves the legacy native and preset format identifiers", () => {
+    assert.equal(api.version,"0.5.0");
+    assert.equal(api.matchName,"ParticleAtelier.Particles");
+    const oldText="PARTICLE_ATELIER_PRESET 1\nname=Legacy%20Dust\ndescription=Old%20project\n"+
+        "rate=650\nsize=1.2\nlife=2.4\nshape=1\nblend=2\ncolorMode=1\ntint=0.5,0.7,1,1\n"+
+        "speed=0\ndirection=0\nspread=360\ndamping=0\nfadeIn=4\nfadeOut=70\ntwinkle=15\ntwinkleHz=1.4\nglow=12\nopacity=85\n";
+    const old=api.parse(oldText);
+    assert.equal(old.name,"Legacy Dust");assert.equal(old.values.rate,650);
+    assert.equal(api.serialize(old),oldText);
+});
+
+test("legacy merging only deduplicates identical content and labels differing namesakes", () => {
+    const current=api.builtins()[0]; current.name="我的星尘";
+    const different=clone(current); different.values.glow=2;
+    const descriptionOnly=clone(current); descriptionOnly.description="旧版说明仍然保留";
+    const legacyOnly=api.builtins()[1];legacyOnly.name="旧目录独有";
+    const entries=(preset,filename)=>({preset,file:{name:filename}});
+    const merged=api.mergePresetEntries([entries(current,"new.papreset")], [
+        entries(clone(current),"duplicate.papreset"),entries(different,"different.papreset"),
+        entries(descriptionOnly,"description.papreset"),entries(legacyOnly,"only.papreset")]);
+    assert.equal(merged.length,4);
+    assert.equal(merged.filter(p=>p.preset.name==="我的星尘").length,3);
+    assert.equal(merged.find(p=>p.origin==="current").displayName,"我的星尘");
+    assert.ok(merged.filter(p=>p.origin==="legacy").every(p=>p.displayName.includes("旧版")));
+    const labels=merged.map(p=>p.displayName);assert.equal(new Set(labels).size,4);
+    merged[0].preset.values.glow=99;assert.equal(current.values.glow,8);
+});
+
+test("default preset listing reads both libraries while saves target the new brand", () => {
+    const newRoot="/user-data/Nebula Particle/User Presets", oldRoot="/user-data/Particle Atelier/User Presets";
+    const folders={}, reads=[];
+    function FakeFolder(name) { this.fsName=name;this.exists=!!folders[name]; }
+    FakeFolder.userData={fsName:"/user-data"};
+    FakeFolder.prototype.getFiles=function(){reads.push(this.fsName);return folders[this.fsName] || [];};
+    function FakeFile(name,text) {this.name=name;this.length=text.length;this.text=text;}
+    FakeFile.prototype.open=function(mode){assert.equal(mode,"r");return true;};
+    FakeFile.prototype.read=function(){return this.text;};FakeFile.prototype.close=function(){};
+    const p=api.builtins()[1];
+    folders[newRoot]=[];folders[oldRoot]=[new FakeFile("legacy.papreset",api.serialize(p))];
+    const context={Folder:FakeFolder,File:FakeFile};
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(__dirname,"../scripts/NebulaParticlePresetLib.jsxinc"),"utf8"),context);
+    assert.equal(context.PA_Presets.userFolder().fsName,newRoot);
+    assert.equal(context.PA_Presets.legacyUserFolder().fsName,oldRoot);
+    assert.equal(context.PA_Presets.listUserPresets().presets.length,1);
+    assert.deepEqual(reads,[newRoot,oldRoot]);
+    reads.length=0;
+    assert.equal(context.PA_Presets.listUserPresets(new FakeFolder(newRoot)).presets.length,0);
+    assert.deepEqual(reads,[newRoot],"explicit test/import folders must not merge unrelated user data");
 });
 
 test("strict parser rejects injected code, duplicate keys and unknown schema", () => {
@@ -106,7 +157,7 @@ test("host assignment errors roll back earlier writes", () => {
     assert.deepEqual(m.snapshot(),before);
 });
 
-test("selection resolves only one intended Particle Atelier effect", () => {
+test("selection resolves only one intended Nebula Particle effect", () => {
     const m=mockEffect();
     const comp={selectedLayers:[],selectedProperties:[m.leaves.size]};
     assert.equal(api.selectedEffect(comp),m.effect);
@@ -128,7 +179,7 @@ test("selection deduplicates host wrappers and rejects locked selected effects",
 });
 
 test("panel source parses after standard ExtendScript directives", () => {
-    const filename=path.join(__dirname,"../scripts/Particle Atelier Presets.jsx");
+    const filename=path.join(__dirname,"../scripts/Nebula Particle Presets.jsx");
     const source=fs.readFileSync(filename,"utf8").replace(/^#.*$/gm,"");
     new vm.Script(source,{filename});
 });

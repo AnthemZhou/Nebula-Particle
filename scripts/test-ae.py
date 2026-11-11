@@ -34,7 +34,7 @@ def main():
     project = Path(next(line[8:] for line in report.splitlines() if line.startswith('Project ')))
     assert project.parent == OUT and project.is_file()
     started = time.time()
-    for bit_depth, path in [(16, project), (8, OUT/'Particle Atelier Test 8bit.aep')]:
+    for bit_depth, path in [(16, project), (8, OUT/'Nebula Particle Test 8bit.aep')]:
         print(f'Rendering the {bit_depth}-bpc integration queue…', flush=True)
         run([APP/'aerender', '-project', path, '-mfr', 'OFF', '100', '-v', 'ERRORS_AND_PROGRESS'], f'ae-render-{bit_depth}.log')
         text = (OUT/f'ae-render-{bit_depth}.log').read_text()

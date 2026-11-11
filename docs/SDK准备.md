@@ -1,6 +1,8 @@
 # Adobe SDK 与构建说明
 
-本文面向从源码构建 Particle Atelier 的开发者。当前脚本目标为 macOS arm64，最低构建部署目标为 macOS 12.0；具体宿主兼容性以对应版本的 AE 验证记录为准。
+本文面向从源码构建 Nebula Particle 的开发者。当前脚本目标为 macOS arm64，最低构建部署目标为 macOS 12.0；具体宿主兼容性以对应版本的 AE 验证记录为准。
+
+使用 0.5.0 编译发布包时不需要 SDK，请直接阅读[安装说明](安装说明.md)。本页仅描述源码开发。
 
 Adobe SDK 不随仓库分发。不要把 SDK 头文件、示例源码、下载映像、宿主程序或授权文件提交到 Git。
 
@@ -54,10 +56,10 @@ AE_SDK_ROOT="/path/to/AfterEffectsSDK" bash scripts/build.sh
 
 输出入口：
 
-- `build/Particle Atelier.plugin`：指向本地签名实体包的符号链接。
-- `build/Particle Atelier.zip`：便于复制的构建归档，不自动发布。
+- `build/Nebula Particle.plugin`：指向本地签名实体包的符号链接。
+- `dist/Nebula-Particle-0.5.0-macos-arm64.zip`：完整发行包，由打包流程另行生成，不等于单独编译完成。
 
-实体包存放在用户 Application Support 下的 `Particle Atelier/Builds/`。这样可避免受同步服务管理的工作目录给已签名包追加 Finder 元数据。不要直接修改已签名包；改变资源后应重建或使用外部资源重读。
+实体包存放在用户 Application Support 下的 `Nebula Particle/Builds/`。这样可避免受同步服务管理的工作目录给已签名包追加 Finder 元数据。不要直接修改已签名包；改变资源后应重建或使用外部资源重读。
 
 安装原生效果：
 
@@ -71,16 +73,16 @@ bash scripts/install-dev.sh
 ~/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore/
 ```
 
-安装器只处理 Particle Atelier，核验包标识与签名，并在替换前备份旧版本。更新已有原生插件前需要保存工程并退出 AE；安装器不会自动关闭或启动宿主。首次复制新插件也需要新 AE 会话才能被发现。
+安装器只处理 Nebula Particle，核验包标识与签名，并在替换前备份旧版本。更新已有原生插件前需要保存工程并退出 AE；安装器不会自动关闭或启动宿主。首次复制新插件也需要新 AE 会话才能被发现。
 
-开发期临时签名不是公开发行所需签名、公证和分发流程的完成证明。
+0.5.0 发布包使用 ad-hoc 签名，尚未经过 Apple 公证。包签名校验通过不代表公证完成。
 
 ## 4. 安装预设面板
 
-v0.2 面板包含：
+0.5.0 面板包含：
 
-- `scripts/Particle Atelier Presets.jsx`
-- `scripts/ParticleAtelierPresetLib.jsxinc`
+- `scripts/Nebula Particle Presets.jsx`
+- `scripts/NebulaParticlePresetLib.jsxinc`
 
 两份文件必须放在同一目录。安装命令：
 
@@ -103,8 +105,10 @@ bash scripts/update-presets.sh
 外部可编辑资源位于：
 
 ```text
-~/Library/Application Support/Particle Atelier/presets.ini
+~/Library/Application Support/Nebula Particle/presets.ini
 ```
+
+新目录没有资源文件时，原生插件可回退读取旧 `Particle Atelier` 数据目录。安装器仅在新 `presets.ini` 缺失时复制旧文件，不覆盖已有新资源。
 
 然后在效果控件中使用 **Advanced → Development → Reload current preset**。此操作会重新应用当前内置预设的视觉值，保留来源连接、发射通道、种子和停止时间，并使相关画面缓存失效。
 
@@ -132,6 +136,7 @@ python3 scripts/test-ae.py
 ## 7. 宿主接入要点
 
 - 参数磁盘 ID 需要保持稳定；面板分组改变不能破坏已保存工程。
+- 0.5.0 的显示名为 Nebula Particle，但效果匹配名继续使用 `ParticleAtelier.Particles`。旧标识是兼容协议，不随品牌名称改写。
 - 历史帧 checkout 需要正确的时间尺度和对应 check-in；归还之后不能继续持有像素指针。
 - 普通图层 checkout 不应假定自动包含所有前序效果、遮罩与变换；当前输入建议使用烘焙素材或预合成。
 - 每张图像分别使用自己的 `rowbytes` 和正确位深，处理预乘 Alpha。

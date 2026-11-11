@@ -43,7 +43,7 @@
             originalOutputs.push(module.file.fsName);
             module.file = new File(module.file.fsName.replace("ae-16-", "ae-8-"));
         }
-        var eightBitFile = new File(root.fsName + "/test-output/Particle Atelier Test 8bit.aep");
+        var eightBitFile = new File(root.fsName + "/test-output/Nebula Particle Test 8bit.aep");
         app.project.save(eightBitFile);
         record("Prepared 8 bpc project: " + eightBitFile.fsName);
         app.project.bitsPerChannel = 16;

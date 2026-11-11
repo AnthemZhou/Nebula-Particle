@@ -1,10 +1,10 @@
 # Contributing / 参与贡献
 
-感谢帮助 Particle Atelier 改进粒子质感、AE 工作流和性能。问题反馈、可复现工程说明、预设建议、文档修正和代码都欢迎。
+感谢帮助 Nebula Particle 改进粒子质感、AE 工作流和性能。问题反馈、可复现工程说明、预设建议、文档修正和代码都欢迎。
 
 ## 反馈问题
 
-在 [Issues](https://github.com/AnthemZhou/Particle_Atelier/issues) 描述：
+在 [Issues](https://github.com/AnthemZhou/Nebula-Particle/issues) 描述：
 
 - 插件版本、AE 版本、操作系统与运行架构。
 - 复现步骤，以及预期结果和实际结果。

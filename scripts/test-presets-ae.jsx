@@ -9,14 +9,16 @@
     try {
         assert(!app.project || (!app.project.file && app.project.numItems === 0), "Existing project left untouched.");
         owned = true;
-        $.evalFile(new File(root.fsName + "/scripts/ParticleAtelierPresetLib.jsxinc"));
+        $.evalFile(new File(root.fsName + "/scripts/NebulaParticlePresetLib.jsxinc"));
         if (!app.project) app.newProject();
         var comp = app.project.items.addComp("Preset integration", 640, 360, 1, 4, 25);
         var source = comp.layers.addSolid([1,1,1], "Source", 640, 360, 1, 4);
         var mask = comp.layers.addSolid([1,1,1], "Mask", 640, 360, 1, 4);
         var map = comp.layers.addSolid([1,0.2,0.4], "Color", 640, 360, 1, 4);
-        var carrier = comp.layers.addSolid([0,0,0], "Particle Atelier", 640, 360, 1, 4);
+        var carrier = comp.layers.addSolid([0,0,0], "Nebula Particle", 640, 360, 1, 4);
         var fx = carrier.property("ADBE Effect Parade").addProperty("ParticleAtelier.Particles");
+        assert(fx.name === "Nebula Particle", "Renamed native effect was not loaded");
+        assert(PA_Presets.version === "0.5.0", "Unexpected preset library version");
         var get = function (name) { return PA_Presets.findParameter(fx, name); };
         var preserved = {
             "Source (None = this layer)":source.index,

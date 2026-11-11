@@ -14,11 +14,18 @@ fi
 # AE 23.6 itself identifies Scripts/ScriptUI Panels in the user preferences
 # folder as an installation location. This creates files, not preference keys.
 DESTINATION="${AE_SCRIPTUI_DIR:-$HOME/Library/Preferences/Adobe/After Effects/$VERSION/Scripts/ScriptUI Panels}"
-FILES=("ParticleAtelierPresetLib.jsxinc" "Particle Atelier Presets.jsx")
+FILES=("NebulaParticlePresetLib.jsxinc" "Nebula Particle Presets.jsx")
+LEGACY_FILES=("ParticleAtelierPresetLib.jsxinc" "Particle Atelier Presets.jsx")
 for filename in "${FILES[@]}"; do
     [[ -f "$PROJECT_ROOT/scripts/$filename" ]] || { printf 'Missing panel source: %s\n' "$filename" >&2; exit 2; }
     if [[ -L "$DESTINATION/$filename" || ( -e "$DESTINATION/$filename" && ! -f "$DESTINATION/$filename" ) ]]; then
         printf 'Refusing to replace a symbolic link or non-file: %s\n' "$DESTINATION/$filename" >&2
+        exit 2
+    fi
+done
+for filename in "${LEGACY_FILES[@]}"; do
+    if [[ -L "$DESTINATION/$filename" || ( -e "$DESTINATION/$filename" && ! -f "$DESTINATION/$filename" ) ]]; then
+        printf 'Refusing to move a legacy symbolic link or non-file: %s\n' "$DESTINATION/$filename" >&2
         exit 2
     fi
 done
@@ -27,7 +34,7 @@ if [[ ! -w "$DESTINATION" ]]; then
     printf 'The ScriptUI directory is not writable: %s\n' "$DESTINATION" >&2
     exit 2
 fi
-STAGING="$(mktemp -d "$DESTINATION/.particle-atelier-panel.XXXXXX")"
+STAGING="$(mktemp -d "$DESTINATION/.nebula-particle-panel.XXXXXX")"
 trap 'rmdir "$STAGING" 2>/dev/null || true' EXIT
 BACKUP="$PROJECT_ROOT/.local/panel-backups/$(date +%Y%m%d-%H%M%S)-$$"
 for filename in "${FILES[@]}"; do
@@ -40,8 +47,16 @@ done
 for filename in "${FILES[@]}"; do
     mv "$STAGING/$filename" "$DESTINATION/$filename"
 done
-printf 'Installed panel: %s\n' "$DESTINATION/Particle Atelier Presets.jsx"
+for filename in "${LEGACY_FILES[@]}"; do
+    if [[ -f "$DESTINATION/$filename" ]]; then
+        mkdir -p "$BACKUP"
+        mv "$DESTINATION/$filename" "$BACKUP/$filename"
+        printf 'Legacy panel file moved to backup: %s\n' "$BACKUP/$filename"
+    fi
+done
+printf 'Installed panel: %s\n' "$DESTINATION/Nebula Particle Presets.jsx"
 if [[ -d "$BACKUP" ]]; then printf 'Previous files backed up: %s\n' "$BACKUP"; fi
 printf '%s\n' 'A new AE session can discover this panel in the Window menu.' \
     'In the current session, File > Scripts > Run Script File opens the JSX as a floating palette.' \
+    'Existing user presets remain in place and are read by the new panel.' \
     'No application was restarted; no preferences, CEP settings, or native bundles were changed.'

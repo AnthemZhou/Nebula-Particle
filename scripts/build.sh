@@ -4,8 +4,8 @@ set -euo pipefail
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK_ROOT="${AE_SDK_ROOT:-$PROJECT_ROOT/.local/ae-sdk}"
 BUILD_ROOT="$PROJECT_ROOT/build"
-ARTIFACT_ROOT="$HOME/Library/Application Support/Particle Atelier/Builds"
-PLUGIN_NAME="Particle Atelier.plugin"
+ARTIFACT_ROOT="$HOME/Library/Application Support/Nebula Particle/Builds"
+PLUGIN_NAME="Nebula Particle.plugin"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
     printf '%s\n' 'This build script currently targets macOS arm64 only.' >&2
@@ -29,7 +29,7 @@ for required in Headers/AE_Effect.h Headers/AE_EffectVers.h Headers/AE_EffectUI.
         exit 2
     fi
 done
-for source in src/ae_plugin.cpp src/particle_core.cpp resources/ParticleAtelierPiPL.r resources/Info.plist resources/presets.ini; do
+for source in src/ae_plugin.cpp src/particle_core.cpp resources/NebulaParticlePiPL.r resources/Info.plist resources/presets.ini; do
     if [[ ! -f "$PROJECT_ROOT/$source" ]]; then
         printf 'Missing project source: %s\n' "$source" >&2
         exit 2
@@ -56,7 +56,7 @@ trap cleanup EXIT
 BUNDLE="$STAGING/$PLUGIN_NAME"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 
-printf '%s\n' 'Compiling Particle Atelier for macOS arm64…'
+printf '%s\n' 'Compiling Nebula Particle for macOS arm64…'
 xcrun --sdk macosx clang++ \
     -std=c++17 -stdlib=libc++ -arch arm64 -mmacosx-version-min=12.0 \
     -isysroot "$MACOS_SDK" -O2 -DNDEBUG -DPF_DEEP_COLOR_AWARE=1 \
@@ -66,13 +66,13 @@ xcrun --sdk macosx clang++ \
     -bundle -framework Cocoa \
     -Wl,-exported_symbol,_EffectMain -Wl,-exported_symbol,_PluginDataEntryFunction2 \
     "$PROJECT_ROOT/src/ae_plugin.cpp" "$PROJECT_ROOT/src/particle_core.cpp" \
-    -o "$BUNDLE/Contents/MacOS/ParticleAtelier"
+    -o "$BUNDLE/Contents/MacOS/NebulaParticle"
 
 printf '%s\n' 'Compiling PiPL metadata…'
 xcrun Rez -useDF -arch arm64 -d __MACH__ -d __arm64__ \
     -i "$SDK_EXAMPLES/Headers" -i "$SDK_EXAMPLES/Resources" -i "$PROJECT_ROOT/src" \
-    "$PROJECT_ROOT/resources/ParticleAtelierPiPL.r" \
-    -o "$BUNDLE/Contents/Resources/ParticleAtelier.rsrc"
+    "$PROJECT_ROOT/resources/NebulaParticlePiPL.r" \
+    -o "$BUNDLE/Contents/Resources/NebulaParticle.rsrc"
 
 cp "$PROJECT_ROOT/resources/Info.plist" "$BUNDLE/Contents/Info.plist"
 cp "$PROJECT_ROOT/resources/presets.ini" "$BUNDLE/Contents/Resources/presets.ini"
@@ -83,11 +83,11 @@ plutil -lint "$BUNDLE/Contents/Info.plist"
 xattr -cr "$BUNDLE"
 codesign --force --sign - --timestamp=none "$BUNDLE"
 codesign --verify --strict --verbose=2 "$BUNDLE"
-xcrun lipo "$BUNDLE/Contents/MacOS/ParticleAtelier" -verify_arch arm64
-ditto -c -k --norsrc --noextattr --keepParent "$BUNDLE" "$STAGING/Particle Atelier.zip"
+xcrun lipo "$BUNDLE/Contents/MacOS/NebulaParticle" -verify_arch arm64
+ditto -c -k --norsrc --noextattr --keepParent "$BUNDLE" "$STAGING/Nebula Particle.zip"
 
 # Publish only after every build and signature check passes.
-PUBLISH_LINK="$BUILD_ROOT/.particle-atelier-link.$$"
+PUBLISH_LINK="$BUILD_ROOT/.nebula-particle-link.$$"
 ln -s "$BUNDLE" "$PUBLISH_LINK"
 codesign --verify --strict "$PUBLISH_LINK"
 PREVIOUS=""
@@ -111,8 +111,8 @@ if ! codesign --verify --strict --verbose=2 "$BUILD_ROOT/$PLUGIN_NAME"; then
     exit 1
 fi
 PUBLISHED=1
-cp -X "$STAGING/Particle Atelier.zip" "$BUILD_ROOT/Particle Atelier.zip"
+cp -X "$STAGING/Nebula Particle.zip" "$BUILD_ROOT/Nebula Particle.zip"
 printf 'Built: %s\n' "$BUILD_ROOT/$PLUGIN_NAME"
 printf 'Signed bundle: %s\n' "$BUNDLE"
-printf 'Portable archive: %s\n' "$BUILD_ROOT/Particle Atelier.zip"
+printf 'Portable archive: %s\n' "$BUILD_ROOT/Nebula Particle.zip"
 printf '%s\n' 'This verifies packaging; loading and rendering must still be tested inside After Effects.'
