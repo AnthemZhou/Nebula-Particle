@@ -74,7 +74,7 @@ The six built-in starting points cover surface sparkle, fine dust trails, star t
 
 - The current build target is **macOS arm64**; the development host is After Effects 23.6.
 - The renderer currently uses the CPU, with 8 / 16 bpc host paths.
-- v0.2 has passed host regression checks for rendering, saved-project compatibility and preset data operations. Complete visual panel interaction remains under verification.
+- v0.2 has passed host regression checks for rendering, saved-project compatibility and preset data operations. The grouped controls and Chinese preset panel have also been opened and visually inspected in AE; different docking sizes still need further testing.
 - GPU acceleration, optical-flow inertia, 32 bpc / HDR, depth and depth of field, Z output, cloning and a complete bake workflow are not implemented yet.
 
 See the [preview guide](docs/验证版使用说明.md) for sampling rules and verification limits. No performance advantage over Particular is claimed.

@@ -4,18 +4,32 @@
 (function (thisObj) {
     var api=PA_Presets;
     var win=(thisObj instanceof Panel) ? thisObj : new Window("palette","Particle Atelier · 粒子预设",undefined,{resizeable:true});
-    win.orientation="column"; win.alignChildren=["fill","top"]; win.spacing=10; win.margins=14;
-    win.minimumSize=[300,410];
-    var title=win.add("statictext",undefined,"Particle Atelier · 粒子预设");
-    var sourceRow=win.add("group"); sourceRow.orientation="row"; sourceRow.alignChildren=["fill","center"];
+    win.orientation="column"; win.alignChildren=["left","top"]; win.spacing=0; win.margins=14;
+    // Includes fixed text/button heights, seven gaps and outer margins.
+    win.minimumSize=[300,620]; win.preferredSize=[360,660];
+    // A dock can initially inherit the whole workspace. Keep the working area
+    // compact instead of allowing buttons to stretch with that host rectangle.
+    var content=win.add("group"); content.orientation="column"; content.alignChildren=["fill","top"];
+    content.alignment=["fill","top"]; content.spacing=10; content.margins=0;
+    content.minimumSize=[260,0]; content.maximumSize=[480,10000];
+    function fixedHeight(control,height) {
+        control.alignment=["fill","top"];
+        control.minimumSize=[0,height]; control.preferredSize=[300,height]; control.maximumSize=[480,height];
+    }
+    var title=content.add("statictext",undefined,"Particle Atelier · 粒子预设"); fixedHeight(title,22);
+    var sourceRow=content.add("group"); sourceRow.orientation="row"; sourceRow.alignChildren=["fill","center"];
+    fixedHeight(sourceRow,30);
     var source=sourceRow.add("dropdownlist",undefined,["内置预设","我的预设"]); source.selection=0; source.alignment=["fill","center"];
+    source.minimumSize=[160,28]; source.preferredSize=[228,28]; source.maximumSize=[406,28];
     var refresh=sourceRow.add("button",undefined,"刷新");
-    var list=win.add("listbox",undefined,[],{multiselect:false}); list.preferredSize=[300,170]; list.alignment=["fill","fill"];
-    var description=win.add("statictext",undefined,"",{multiline:true}); description.preferredSize=[300,65];
-    var apply=win.add("button",undefined,"应用到所选图层 / 效果");
-    var save=win.add("button",undefined,"保存当前效果为我的预设…");
-    var note=win.add("statictext",undefined,"保留素材、发射范围、随机种子与时间设置。\n含关键帧或表达式的目标参数不会被覆盖。",{multiline:true}); note.preferredSize=[300,35];
-    var status=win.add("statictext",undefined,"选中一个图层，或其中的 Particle Atelier 效果。",{multiline:true}); status.preferredSize=[300,40];
+    refresh.alignment=["right","center"]; refresh.minimumSize=refresh.preferredSize=refresh.maximumSize=[64,28];
+    var list=content.add("listbox",undefined,[],{multiselect:false});
+    list.minimumSize=[240,120]; list.preferredSize=[300,170]; list.maximumSize=[480,300]; list.alignment=["fill","fill"];
+    var description=content.add("statictext",undefined,"",{multiline:true}); fixedHeight(description,65);
+    var apply=content.add("button",undefined,"应用到所选图层 / 效果"); fixedHeight(apply,32);
+    var save=content.add("button",undefined,"保存当前效果为我的预设…"); fixedHeight(save,32);
+    var note=content.add("statictext",undefined,"保留素材、发射范围、随机种子与时间设置。\n含关键帧或表达式的目标参数不会被覆盖。",{multiline:true}); fixedHeight(note,60);
+    var status=content.add("statictext",undefined,"选中一个图层，或其中的 Particle Atelier 效果。",{multiline:true}); fixedHeight(status,44);
     var records=[];
 
     function message(text) { status.text=text; }
@@ -81,5 +95,5 @@
     win.onResizing=win.onResize=function(){this.layout.resize();};
     refreshList();
     win.layout.layout(true);
-    if(win instanceof Window) { win.center();win.show(); }
+    if(win instanceof Window) { win.size=[360,560];win.center();win.show(); }
 }(this));
